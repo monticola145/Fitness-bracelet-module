@@ -122,7 +122,10 @@ def read_package(workout_type: str, data: list):
         'SWM': Swimming,
     }
     if workout_type not in dicti:
+        # "...лучше вообще развернуть проверку наоборот..."
+        # "...аварийный возврат с исключением и текстом ошибки с ключом..."
         raise NotImplementedError("Неожиданный тип тренировки")
+        # Так? Или по-другому?
     else:
         return dicti[workout_type](*data)
 
