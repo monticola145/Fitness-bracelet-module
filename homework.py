@@ -1,33 +1,37 @@
+from dataclasses import asdict, dataclass
+from typing import Dict, Type
+
+
+@dataclass
 class InfoMessage:
     """Информационное сообщение о тренировке."""
 
-    def __init__(self, training_type: str, duration:
-                 float, distance: float,
-                 speed: float, calories: float) -> None:
-        self.training_type = training_type
-        self.duration = duration
-        self.distance = distance
-        self.speed = speed
-        self.calories = calories
+    training_type: str
+    duration: float
+    distance: float
+    speed: float
+    calories: float
+
+    REPORT = ("Тип тренировки: {training_type}; "
+              "Длительность: {duration:.3f} ч.; "
+              "Дистанция: {distance:.3f} км; "
+              "Ср. скорость: {speed:.3f} км/ч; "
+              "Потрачено ккал: {calories:.3f}.")
 
     def get_message(self) -> str:
-        return (f"Тип тренировки: {self.training_type}; "
-                f"Длительность: {self.duration:.3f} ч.; "
-                f"Дистанция: {self.distance:.3f} км; "
-                f"Ср. скорость: {self.speed:.3f} км/ч; "
-                f"Потрачено ккал: {self.calories:.3f}.")
+        return self.REPORT.format(**asdict(self))
 
 
 class Training:
     LEN_STEP: float = 0.65
     M_IN_KM: int = 1000
+    IN_MINUTES = 60
     """Базовый класс тренировки."""
 
     def __init__(self, action: int, duration: float, weight: float) -> None:
         self.action = action
         self.duration = duration
         self.weight = weight
-    pass
 
     def get_distance(self) -> float:
         """Получить дистанцию в км."""
@@ -41,6 +45,9 @@ class Training:
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
+    # "Вместо pass тут отлично подойдет исключение NotImplementedError."
+    # Это должно выглядеть так?
+        return NotImplementedError
 
     def show_training_info(self) -> InfoMessage:
         """Вернуть информационное сообщение о выполненной тренировке."""
@@ -55,12 +62,11 @@ class Running(Training):
 
     CAL_RATE_1 = 18
     CAL_RATE_2 = 20
-    in_minutes = 60
 
     def get_spent_calories(self) -> float:
         return ((self.CAL_RATE_1 * self.get_mean_speed()
                 - self.CAL_RATE_2) * self.weight / Training.M_IN_KM
-                * self.duration * self.in_minutes)
+                * self.duration * self.IN_MINUTES)
 
 
 class SportsWalking(Training):
@@ -70,7 +76,7 @@ class SportsWalking(Training):
     M_IN_KM: int = 1000
     CAL_RATE_3 = 0.035
     CAL_RATE_4 = 0.029
-    in_minutes = 60
+    SPEED_MULTIPLIER = 2
 
     def __init__(self, action, duration, weight, height):
         super().__init__(action, duration, weight)
@@ -78,8 +84,9 @@ class SportsWalking(Training):
 
     def get_spent_calories(self):
         return ((self.CAL_RATE_3 * self.weight
-                + (self.get_mean_speed() ** 2 // self.height)
-                * self.CAL_RATE_4) * (self.duration * self.in_minutes))
+                + (self.get_mean_speed() ** self.SPEED_MULTIPLIER
+                 // self.height)
+                 * self.CAL_RATE_4) * (self.duration * self.IN_MINUTES))
 
 
 class Swimming(Training):
@@ -109,20 +116,22 @@ class Swimming(Training):
 def read_package(workout_type: str, data: list):
     """Прочитать данные полученные от датчиков."""
 
-    read: dict[str, Training] = {
+    dicti: Dict[str, Type[Training]] = {
         'RUN': Running,
         'WLK': SportsWalking,
         'SWM': Swimming,
     }
-    if read.get(workout_type) is None:
-        return None
-    return read.get(workout_type)(*data)
+    if workout_type not in dicti:
+        raise NotImplementedError("Неожиданный тип тренировки")
+    else:
+        return dicti[workout_type](*data)
 
 
 def main(training: Training) -> None:
     """Главная функция."""
-    
-    print(training.show_training_info())
+
+    info = training.show_training_info()
+    print(info.get_message())
 
 
 if __name__ == '__main__':
@@ -133,8 +142,10 @@ if __name__ == '__main__':
     ]
 
     for workout_type, data in packages:
-        training = read_package(workout_type, data)
-        if training is None:
-            print('Неожиданный тип тренировки')
+        # "Ловить нужно исключение"
+        if read_package(workout_type, data) is None:
+            # Имелось ввиду, что нужно местами поменять if и else
+            main(read_package(workout_type, data))
+            # Или нужно было использовать try/except?
         else:
-            main(training)
+            print('Неожиданный тип тренировки')
